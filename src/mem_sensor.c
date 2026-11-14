@@ -105,8 +105,6 @@ int main(int argc, char *argv[])
     int waitTime = DEFAULT_WAIT_TIME;
     char output_path[256];
     bool silent = false;
-    FILE *mem_info_fd = NULL;
-    FILE *output_fd = NULL;
 
     snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, MEM_OUTPUT_FILE);
 
@@ -152,9 +150,6 @@ int main(int argc, char *argv[])
 
     
 
-    //finally
-    fclose(mem_info_fd);
-    fclose(output_fd);
 
 
     return 0;
