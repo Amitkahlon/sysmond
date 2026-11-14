@@ -65,14 +65,12 @@ void extract_mem_info(struct Mem_Data *mem_data)
 
 void print_mem_data(const struct Mem_Data *mem_data)
 {
-    printf("=== Memory Information ===\n");
     printf("Actual time elapsed: %.6f seconds\n", curr_elapsed_time);
-    printf("MemTotal:     %lu kB\n", mem_data->mem_total);
-    printf("MemFree:      %lu kB\n", mem_data->mem_free);
+    printf("MemTotal: %lu kB\n", mem_data->mem_total);
+    printf("MemFree: %lu kB\n", mem_data->mem_free);
     printf("MemAvailable: %lu kB\n", mem_data->mem_avaliable);
-    printf("SwapTotal:    %lu kB\n", mem_data->swap_total);
-    printf("SwapFree:     %lu kB\n", mem_data->swap_free);
-    printf("==========================\n");
+    printf("SwapTotal: %lu kB\n", mem_data->swap_total);
+    printf("SwapFree: %lu kB\n", mem_data->swap_free);
 }
 
 void write_to_file(const struct Mem_Data *mem_data, char output_path[])
