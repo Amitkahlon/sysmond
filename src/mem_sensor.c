@@ -19,48 +19,59 @@ struct Mem_Data
     unsigned long swap_free;
 };
 
-void extract_mem_info(struct Mem_Data *mem_data)
+FILE* get_mem_output_fd(){
+    return fopen(MEM_OUTPUT_PATH, "w");
+}
+
+FILE* get_mem_input_fd(){
+    return fopen(MEM_INFO_PATH, "r");
+}
+
+struct Mem_Data extract_mem_info()
 {
+    struct Mem_Data mem_data = {0};
     char line[256];
     unsigned long tmp_value = 0;
 
-    FILE *mem_info_fd = fopen(MEM_INFO_PATH, "r");
+    FILE *mem_info_fd = get_mem_input_fd();
 
     if (mem_info_fd == NULL)
     {
         perror("Failed to open /proc/meminfo");
-        return;
+        return mem_data;
     }
 
     while (fgets(line, sizeof(line), mem_info_fd) != NULL)
     {
         if (sscanf(line, "MemTotal: %lu kB", &tmp_value) == 1)
         {
-            mem_data->mem_total = tmp_value;
+            mem_data.mem_total = tmp_value;
         }
 
         else if (sscanf(line, "MemFree: %lu kB", &tmp_value) == 1)
         {
-            mem_data->mem_free = tmp_value;
+            mem_data.mem_free = tmp_value;
         }
 
         else if (sscanf(line, "MemAvailable: %lu kB", &tmp_value) == 1)
         {
-            mem_data->mem_avaliable = tmp_value;
+            mem_data.mem_avaliable = tmp_value;
         }
 
         else if (sscanf(line, "SwapTotal: %lu kB", &tmp_value) == 1)
         {
-            mem_data->swap_total = tmp_value;
+            mem_data.swap_total = tmp_value;
         }
 
         else if (sscanf(line, "SwapFree: %lu kB", &tmp_value) == 1)
         {
-            mem_data->swap_free = tmp_value;
+            mem_data.swap_free = tmp_value;
         }
     }
 
     fclose(mem_info_fd);
+
+    return mem_data;
 }
 
 void print_mem_data(const struct Mem_Data *mem_data)
@@ -75,7 +86,7 @@ void print_mem_data(const struct Mem_Data *mem_data)
 
 void write_to_file(const struct Mem_Data *mem_data, char output_path[])
 {
-    FILE *output_fd = fopen(output_path, "w");
+    FILE *output_fd = get_mem_output_fd();
 
     if (output_fd == NULL)
     {
@@ -86,10 +97,10 @@ void write_to_file(const struct Mem_Data *mem_data, char output_path[])
     fprintf(output_fd, "=== Memory Information ===\n");
     fprintf(output_fd,"Actual time elapsed: %.6f seconds\n", curr_elapsed_time);
     fprintf(output_fd, "Mem Total:     %lu kB\n", mem_data->mem_total);
-    fprintf(output_fd, "Mem Free:     %lu kB\n", mem_data->mem_total);
-    fprintf(output_fd, "Mem Available:     %lu kB\n", mem_data->mem_total);
-    fprintf(output_fd, "Swap Total:     %lu kB\n", mem_data->mem_total);
-    fprintf(output_fd, "Swap Free:     %lu kB\n", mem_data->mem_total);
+    fprintf(output_fd, "Mem Free:     %lu kB\n", mem_data->mem_free);
+    fprintf(output_fd, "Mem Available:     %lu kB\n", mem_data->mem_avaliable);
+    fprintf(output_fd, "Swap Total:     %lu kB\n", mem_data->swap_total);
+    fprintf(output_fd, "Swap Free:     %lu kB\n", mem_data->swap_free);
     fprintf(output_fd, "==========================");
 
     fclose(output_fd);
@@ -104,7 +115,7 @@ int main(int argc, char *argv[])
     struct Mem_Data mem_data;
     int waitTime = DEFAULT_WAIT_TIME;
     char output_path[256];
-    bool silent = false;
+    bool silent = true;
 
     snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, MEM_OUTPUT_FILE);
 
@@ -118,8 +129,7 @@ int main(int argc, char *argv[])
         silent = true;
     }
 
-    
-    printf("Wait time between each check is set to: %d seconds\n", waitTime);
+    printf("mem_sensor: Wait time between each check is set to: %d seconds\n", waitTime);
 
     clock_gettime(CLOCK_MONOTONIC, &prev_time);
 
@@ -136,7 +146,7 @@ int main(int argc, char *argv[])
         // ensures that sysmon foldr exists in the tmp directory
         mkdir(OUTPUT_FOLDER, 0755);
 
-        extract_mem_info(&mem_data);
+        mem_data = extract_mem_info();
 
         if (!silent)
         {
@@ -145,12 +155,16 @@ int main(int argc, char *argv[])
 
         write_to_file(&mem_data, output_path);
 
+        if (silent)
+        {
+            time_t now = time(NULL);
+            char timestamp[9];
+            strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(&now));
+            printf("[%s] mem_sensor: updated\n", timestamp);
+        }
+
         prev_time = curr_time;
     }
-
-    
-
-
 
     return 0;
 }

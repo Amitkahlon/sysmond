@@ -16,24 +16,36 @@ struct Cpu_Data
     float min15_avg;
 };
 
-void extract_load_avg_info(struct Cpu_Data *cpu_data)
+FILE* get_cpu_output_fd(){
+    return fopen(CPU_OUTPUT_PATH, "w");
+}
+
+FILE* get_cpu_input_fd(){
+    return fopen(LOAD_AVG_PATH, "r");
+}
+
+struct Cpu_Data extract_load_avg_info()
 {
-    FILE *mem_info_fd = fopen(LOAD_AVG_PATH, "r");
+    struct Cpu_Data cpu_data = {0};
+    FILE *mem_info_fd = get_cpu_input_fd();
 
     if (mem_info_fd == NULL)
     {
         perror("Failed to open: ");
         perror(LOAD_AVG_PATH);
 
-        return;
+        return cpu_data;
     }
 
-    if (fscanf(mem_info_fd, "%f %f %f", &cpu_data->min1_avg, &cpu_data->min5_avg, &cpu_data->min15_avg) != 3)
+    if (fscanf(mem_info_fd, "%f %f %f", &cpu_data.min1_avg, &cpu_data.min5_avg, &cpu_data.min15_avg) != 3)
     {
         perror("Error reading the first three values.\n");
     }
 
     fclose(mem_info_fd);
+
+
+    return cpu_data;
 }
 
 void print(const struct Cpu_Data cpu_data)
@@ -46,7 +58,7 @@ void print(const struct Cpu_Data cpu_data)
 
 void write_to_file(const struct Cpu_Data *cpu_data, char output_path[])
 {
-    FILE *output_fd = fopen(output_path, "w");
+    FILE *output_fd = get_cpu_output_fd();
 
     if (output_fd == NULL)
     {
@@ -54,9 +66,9 @@ void write_to_file(const struct Cpu_Data *cpu_data, char output_path[])
         return;
     }
 
-    fprintf(output_fd, "1 Minute Averge: %f kB\n", cpu_data->min1_avg);
-    fprintf(output_fd, "5 Minute Averge: %f kB\n", cpu_data->min5_avg);
-    fprintf(output_fd, "15 Minute Averge: %f kB\n", cpu_data->min15_avg);
+    fprintf(output_fd, "1 Minute Averge: %f\n", cpu_data->min1_avg);
+    fprintf(output_fd, "5 Minute Averge: %f\n", cpu_data->min5_avg);
+    fprintf(output_fd, "15 Minute Averge: %f\n", cpu_data->min15_avg);
     fprintf(output_fd,"Actual time elapsed: %.6f seconds\n", curr_elapsed_time);
 
     fclose(output_fd);
@@ -68,7 +80,7 @@ int main(int argc, char *argv[])
     struct timespec prev_time, curr_time; // to get the actual elapsed time.
     int waitTime = DEFAULT_WAIT_TIME;
     char output_path[256];
-    bool silent = false;
+    bool silent = true;
 
     snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, CPU_OUTPUT_FILE);
 
@@ -82,7 +94,7 @@ int main(int argc, char *argv[])
         silent = true;
     }
 
-    printf("Wait time between each check is set to: %d seconds\n", waitTime);
+    printf("cpu_sensor: Wait time between each check is set to: %d seconds\n", waitTime);
 
     clock_gettime(CLOCK_MONOTONIC, &prev_time);
 
@@ -98,13 +110,21 @@ int main(int argc, char *argv[])
         // ensures that sysmon foldr exists in the tmp directory
         mkdir(OUTPUT_FOLDER, 0755);
 
-        extract_load_avg_info(&cpu_data);
+        cpu_data = extract_load_avg_info();
 
         if(!silent) {
             print(cpu_data);
         }
 
         write_to_file(&cpu_data, output_path);
+
+        if (silent)
+        {
+            time_t now = time(NULL);
+            char timestamp[9];
+            strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(&now));
+            printf("[%s] cpu_sensor: updated\n", timestamp);
+        }
 
         prev_time = curr_time;
     }

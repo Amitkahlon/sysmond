@@ -12,6 +12,15 @@
 
 double curr_elapsed_time = 0;
 
+
+FILE* get_proc_output_fd(){
+    return fopen(PROC_OUTPUT_PATH, "w");
+}
+
+DIR* get_proc_input_fd(){
+    return opendir(PROC_FOLDER_PATH);
+}
+
 int is_numeric(const char *str) {
     if (*str == '\0') return 0;
     while (*str) {
@@ -24,7 +33,8 @@ int is_numeric(const char *str) {
 }
 
 int extract_active_procs_count() {
-    DIR *dir = opendir("/proc");
+    DIR *dir = get_proc_input_fd();
+    
     if (dir == NULL) {
         perror("Failed to open /proc directory");
         return -1;
@@ -44,7 +54,7 @@ int extract_active_procs_count() {
 }
 
 void write_to_file(const int proc_count, char output_path[]) {
-    FILE *output_fd = fopen(output_path, "w");
+    FILE *output_fd = get_proc_output_fd();
 
     if (output_fd == NULL)
     {
@@ -63,7 +73,7 @@ int main(int argc, char *argv[])
     struct timespec prev_time, curr_time; // to get the actual elapsed time.
     int waitTime = DEFAULT_WAIT_TIME;
     char output_path[256];
-    bool silent = false;
+    bool silent = true;
     int proc_count = 0;
 
     snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, PROC_OUTPUT_FILE);
@@ -78,7 +88,7 @@ int main(int argc, char *argv[])
         silent = true;
     }
 
-    printf("Wait time between each check is set to: %d seconds\n", waitTime);
+    printf("proc_sensor: Wait time between each check is set to: %d seconds\n", waitTime);
 
     clock_gettime(CLOCK_MONOTONIC, &prev_time);
 
@@ -101,6 +111,14 @@ int main(int argc, char *argv[])
         }
 
         write_to_file(proc_count, output_path);
+
+        if (silent)
+        {
+            time_t now = time(NULL);
+            char timestamp[9];
+            strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(&now));
+            printf("[%s] proc_sensor: updated\n", timestamp);
+        }
 
         prev_time = curr_time;
     }
