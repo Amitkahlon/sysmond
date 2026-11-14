@@ -38,9 +38,9 @@ void print_mem_data(const struct Mem_Data *mem_data)
 
 void print_cpu_data(const struct Cpu_Data cpu_data)
 {
-    printf("First:  %.2f\n", cpu_data.min1_avg);
-    printf("Second: %.2f\n", cpu_data.min5_avg);
-    printf("Third:  %.2f\n", cpu_data.min15_avg);
+    printf("1-minute load average:   %.2f\n", cpu_data.min1_avg);
+    printf("5-minute load average:   %.2f\n", cpu_data.min5_avg);
+    printf("15-minute load average:  %.2f\n", cpu_data.min15_avg);
 }
 
 void read_mem_file()
