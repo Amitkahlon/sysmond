@@ -19,21 +19,20 @@ struct Mem_Data
     unsigned long swap_free;
 };
 
-void monitor(struct Mem_Data *mem_data)
+void extract_mem_info(struct Mem_Data *mem_data)
 {
-    FILE *fd;
-    fd = fopen(MEM_INFO_PATH, "r");
+    char line[256];
+    unsigned long tmp_value = 0;
 
-    if (fd == NULL)
+    FILE *mem_info_fd = fopen(MEM_INFO_PATH, "r");
+
+    if (mem_info_fd == NULL)
     {
         perror("Failed to open /proc/meminfo");
         return;
     }
 
-    char line[256];
-    unsigned long tmp_value = 0;
-
-    while (fgets(line, sizeof(line), fd) != NULL)
+    while (fgets(line, sizeof(line), mem_info_fd) != NULL)
     {
         if (sscanf(line, "MemTotal: %lu kB", &tmp_value) == 1)
         {
@@ -60,6 +59,8 @@ void monitor(struct Mem_Data *mem_data)
             mem_data->swap_free = tmp_value;
         }
     }
+
+    fclose(mem_info_fd);
 }
 
 void print_mem_data(const struct Mem_Data *mem_data)
@@ -74,37 +75,42 @@ void print_mem_data(const struct Mem_Data *mem_data)
     printf("==========================\n");
 }
 
-void write_to_file(const struct Mem_Data *mem_data, char filepath[])
+void write_to_file(const struct Mem_Data *mem_data, char output_path[])
 {
-    FILE *fptr = fopen(filepath, "w");
+    FILE *output_fd = fopen(output_path, "w");
 
-    if (fptr == NULL)
+    if (output_fd == NULL)
     {
         printf("Error opening file!\n");
         return;
     }
 
-    fprintf(fptr, "=== Memory Information ===\n");
-    fprintf(fptr,"Actual time elapsed: %.6f seconds\n", curr_elapsed_time);
-    fprintf(fptr, "Mem Total:     %lu kB\n", mem_data->mem_total);
-    fprintf(fptr, "Mem Free:     %lu kB\n", mem_data->mem_total);
-    fprintf(fptr, "Mem Available:     %lu kB\n", mem_data->mem_total);
-    fprintf(fptr, "Swap Total:     %lu kB\n", mem_data->mem_total);
-    fprintf(fptr, "Swap Free:     %lu kB\n", mem_data->mem_total);
-    fprintf(fptr, "==========================");
+    fprintf(output_fd, "=== Memory Information ===\n");
+    fprintf(output_fd,"Actual time elapsed: %.6f seconds\n", curr_elapsed_time);
+    fprintf(output_fd, "Mem Total:     %lu kB\n", mem_data->mem_total);
+    fprintf(output_fd, "Mem Free:     %lu kB\n", mem_data->mem_total);
+    fprintf(output_fd, "Mem Available:     %lu kB\n", mem_data->mem_total);
+    fprintf(output_fd, "Swap Total:     %lu kB\n", mem_data->mem_total);
+    fprintf(output_fd, "Swap Free:     %lu kB\n", mem_data->mem_total);
+    fprintf(output_fd, "==========================");
 
-    fclose(fptr);
+    fclose(output_fd);
 }
+
+
+
 
 int main(int argc, char *argv[])
 {
     struct timespec prev_time, curr_time; //to get the actual elapsed time.
     struct Mem_Data mem_data;
     int waitTime = DEFAULT_WAIT_TIME;
-    char full_path[256];
+    char output_path[256];
     bool silent = false;
+    FILE *mem_info_fd = NULL;
+    FILE *output_fd = NULL;
 
-    snprintf(full_path, sizeof(full_path), "%s/%s", OUTPUT_FOLDER, MEM_OUTPUT_FILE);
+    snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, MEM_OUTPUT_FILE);
 
     if (argc > 1)
     {
@@ -116,6 +122,7 @@ int main(int argc, char *argv[])
         silent = true;
     }
 
+    
     printf("Wait time between each check is set to: %d seconds\n", waitTime);
 
     clock_gettime(CLOCK_MONOTONIC, &prev_time);
@@ -133,17 +140,24 @@ int main(int argc, char *argv[])
         // ensures that sysmon foldr exists in the tmp directory
         mkdir(OUTPUT_FOLDER, 0755);
 
-        monitor(&mem_data);
+        extract_mem_info(&mem_data);
 
         if (!silent)
         {
             print_mem_data(&mem_data);
         }
 
-        write_to_file(&mem_data, full_path);
+        write_to_file(&mem_data, output_path);
 
         prev_time = curr_time;
     }
+
+    
+
+    //finally
+    fclose(mem_info_fd);
+    fclose(output_fd);
+
 
     return 0;
 }
