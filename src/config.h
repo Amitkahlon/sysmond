@@ -7,7 +7,7 @@
 
 // INPUT
 #define MEM_INFO_PATH "/proc/meminfo"
-#define PROC_AVG_PATH "/proc/loadavg"
+#define LOAD_AVG_PATH "/proc/loadavg"
 
 // OUTPUT
 #define OUTPUT_FOLDER "/tmp/sysmon"
