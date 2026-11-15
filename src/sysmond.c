@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <ctype.h>
+#include <unistd.h>
 
 struct Mem_Data
 {
@@ -138,7 +139,10 @@ int main(int argc, char *argv[])
     if (pid_mem_sensor == 0)
     {
         // child mem_sensor
-        execv("/mem_sensor", argv);
+        execv("bin/mem_sensor", argv);
+
+        perror("execv failed, mem_sensor");
+        exit(1);
     }
     else
     {
@@ -147,8 +151,11 @@ int main(int argc, char *argv[])
 
         if (pid_cpu_sensor == 0)
         {
-            // child
-            execv("/cpu_sensor", argv);
+            // child cpu_sensor
+            execv("bin/cpu_sensor", argv);
+
+            perror("execv failed, cpu_sensor");
+            exit(1);
         }
         else
         {
@@ -156,8 +163,11 @@ int main(int argc, char *argv[])
             pid_proc_sensor = fork();
             if (pid_proc_sensor == 0)
             {
-                // child
-                execv("/proc_sensor", argv);
+                // child proc_sensor
+                execv("bin/proc_sensor", argv);
+
+                perror("execv failed, proc_sensor");
+                exit(1);
             }
             else
             {
