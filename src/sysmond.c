@@ -184,6 +184,13 @@ void handle_sigchld(int sig)
 int main(int argc, char *argv[])
 {
 
+    int wait_time = DEFAULT_WAIT_TIME;
+
+    if (argc > 1)
+    {
+        wait_time = atoi(argv[1]);
+    }
+
     struct sigaction sa;
     sa.sa_handler = handle_sigchld;
     sigemptyset(&sa.sa_mask);
@@ -196,14 +203,13 @@ int main(int argc, char *argv[])
     }
 
     mkdir(OUTPUT_FOLDER, 0755);
-    int wait_time = DEFAULT_WAIT_TIME;
 
     pid_mem_sensor = fork();
     if (pid_mem_sensor == 0)
     {
         // child mem_sensor
 
-        char *memargv[] = {"bin/mem_sensor", NULL};
+        char *memargv[] = {"bin/mem_sensor", argc > 1 ? argv[1] : NULL};
         execv("bin/mem_sensor", memargv);
 
         perror("execv failed, mem_sensor");
@@ -217,7 +223,7 @@ int main(int argc, char *argv[])
         if (pid_cpu_sensor == 0)
         {
             // child cpu_sensor
-            char *cpuargv[] = {"bin/cpu_sensor", NULL};
+            char *cpuargv[] = {"bin/cpu_sensor", argc > 1 ? argv[1] : NULL};
             execv("bin/cpu_sensor", cpuargv);
 
             perror("execv failed, cpu_sensor");
@@ -230,7 +236,7 @@ int main(int argc, char *argv[])
             if (pid_proc_sensor == 0)
             {
                 // child proc_sensor
-                char *cpuargv[] = {"bin/proc_sensor", NULL};
+                char *cpuargv[] = {"bin/proc_sensor", argc > 1 ? argv[1] : NULL};
                 execv("bin/proc_sensor", cpuargv);
 
                 perror("execv failed, proc_sensor");
