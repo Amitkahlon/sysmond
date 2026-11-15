@@ -10,6 +10,16 @@
 #include <errno.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+bool cpu_sensor_status = true;
+bool proc_sensor_status = true;
+bool mem_sensor_status = true;
+
+int pid_mem_sensor;
+int pid_cpu_sensor;
+int pid_proc_sensor;
 
 struct Mem_Data
 {
@@ -117,20 +127,73 @@ int main_loop(int wait_time)
 
         printf("\n========== System Status [%s] ==========\n", timestamp);
         printf("--- Memory ---\n");
-        read_mem_file();
+        if (mem_sensor_status)
+        {
+            read_mem_file();
+        }
+        else
+        {
+            printf("** mem sensor is down **\n");
+        }
         printf("--- CPU Load ---\n");
-        read_cpu_file();
+        if (cpu_sensor_status)
+        {
+            read_cpu_file();
+        }
+        else
+        {
+            printf("** cpu sensor is down **\n");
+        }
         printf("--- Processes ---\n");
-        read_proc_file();
+        if (proc_sensor_status)
+        {
+            read_proc_file();
+        }
+        else
+        {
+            printf("** proc sensor is down **\n");
+        }
+
+        printf("============END============\n");
         fflush(stdout);
+    }
+}
+
+void handle_sigchld(int sig)
+{
+    pid_t pid;
+    int status;
+
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+    {
+        if (pid == pid_cpu_sensor)
+        {
+            cpu_sensor_status = false;
+        }
+        else if (pid == pid_proc_sensor)
+        {
+            proc_sensor_status = false;
+        }
+        else if (pid == pid_mem_sensor)
+        {
+            mem_sensor_status = false;
+        }
     }
 }
 
 int main(int argc, char *argv[])
 {
-    int pid_mem_sensor;
-    int pid_cpu_sensor;
-    int pid_proc_sensor;
+
+    struct sigaction sa;
+    sa.sa_handler = handle_sigchld;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGCHLD, &sa, NULL) == -1)
+    {
+        perror("sigaction failed");
+        return 1;
+    }
 
     mkdir(OUTPUT_FOLDER, 0755);
     int wait_time = DEFAULT_WAIT_TIME;
@@ -139,7 +202,9 @@ int main(int argc, char *argv[])
     if (pid_mem_sensor == 0)
     {
         // child mem_sensor
-        execv("bin/mem_sensor", argv);
+
+        char *memargv[] = {"bin/mem_sensor", NULL};
+        execv("bin/mem_sensor", memargv);
 
         perror("execv failed, mem_sensor");
         exit(1);
@@ -152,7 +217,8 @@ int main(int argc, char *argv[])
         if (pid_cpu_sensor == 0)
         {
             // child cpu_sensor
-            execv("bin/cpu_sensor", argv);
+            char *cpuargv[] = {"bin/cpu_sensor", NULL};
+            execv("bin/cpu_sensor", cpuargv);
 
             perror("execv failed, cpu_sensor");
             exit(1);
@@ -164,7 +230,8 @@ int main(int argc, char *argv[])
             if (pid_proc_sensor == 0)
             {
                 // child proc_sensor
-                execv("bin/proc_sensor", argv);
+                char *cpuargv[] = {"bin/proc_sensor", NULL};
+                execv("bin/proc_sensor", cpuargv);
 
                 perror("execv failed, proc_sensor");
                 exit(1);
