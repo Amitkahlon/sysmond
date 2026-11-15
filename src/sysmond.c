@@ -10,7 +10,6 @@
 #include <errno.h>
 #include <ctype.h>
 
-
 struct Mem_Data
 {
     unsigned long mem_total;
@@ -105,12 +104,10 @@ void read_proc_file()
     fclose(fd);
 }
 
-int main(int argc, char *argv[]) {
-    mkdir(OUTPUT_FOLDER, 0755);
-    int wait_time = DEFAULT_WAIT_TIME;
-
-    while (1) {
-
+int main_loop(int wait_time)
+{
+    while (1)
+    {
         sleep(wait_time);
 
         time_t now = time(NULL);
@@ -126,5 +123,47 @@ int main(int argc, char *argv[]) {
         read_proc_file();
         fflush(stdout);
     }
+}
 
+int main(int argc, char *argv[])
+{
+    int pid_mem_sensor;
+    int pid_cpu_sensor;
+    int pid_proc_sensor;
+
+    mkdir(OUTPUT_FOLDER, 0755);
+    int wait_time = DEFAULT_WAIT_TIME;
+
+    pid_mem_sensor = fork();
+    if (pid_mem_sensor == 0)
+    {
+        // child mem_sensor
+        execv("/mem_sensor", argv);
+    }
+    else
+    {
+        // base
+        pid_cpu_sensor = fork();
+
+        if (pid_cpu_sensor == 0)
+        {
+            // child
+            execv("/cpu_sensor", argv);
+        }
+        else
+        {
+            // base
+            pid_proc_sensor = fork();
+            if (pid_proc_sensor == 0)
+            {
+                // child
+                execv("/proc_sensor", argv);
+            }
+            else
+            {
+                // execute loop
+                main_loop(wait_time);
+            }
+        }
+    }
 }
