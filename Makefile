@@ -1,19 +1,31 @@
-CC = gcc
-CFLAGS = -Wall -g
+CC      = gcc
+CFLAGS  = -Wall -g -pthread -MMD -MP
+LDFLAGS = -pthread
 
-all: bin/sysmond bin/mem_sensor bin/cpu_sensor bin/proc_sensor
+SRC_DIR = src
+OBJ_DIR = build
+BIN_DIR = bin
 
-bin/sysmond: src/sysmond.c src/config.h
-	$(CC) $(CFLAGS) -o bin/sysmond src/sysmond.c
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+DEPS = $(OBJS:.o=.d)
 
-bin/mem_sensor: src/mem_sensor.c src/config.h
-	$(CC) $(CFLAGS) -o bin/mem_sensor src/mem_sensor.c
+TARGET = $(BIN_DIR)/sysmond
 
-bin/cpu_sensor: src/cpu_sensor.c src/config.h
-	$(CC) $(CFLAGS) -o bin/cpu_sensor src/cpu_sensor.c
+all: $(TARGET)
 
-bin/proc_sensor: src/proc_sensor.c src/config.h
-	$(CC) $(CFLAGS) -o bin/proc_sensor src/proc_sensor.c
+$(TARGET): $(OBJS) | $(BIN_DIR)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BIN_DIR) $(OBJ_DIR):
+	mkdir -p $@
 
 clean:
-	rm -rf bin/*
+	rm -rf $(OBJ_DIR) $(BIN_DIR)/*
+
+-include $(DEPS)
+
+.PHONY: all clean

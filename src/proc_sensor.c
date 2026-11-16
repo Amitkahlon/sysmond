@@ -9,22 +9,27 @@
 #include <dirent.h>
 #include <errno.h>
 #include <ctype.h>
+#include "system_state.h"
 
-double curr_elapsed_time = 0;
-
-
-FILE* get_proc_output_fd(){
+/*deprecated from part 1*/
+FILE *get_proc_output_fd()
+{
     return fopen(PROC_OUTPUT_PATH, "w");
 }
 
-DIR* get_proc_input_fd(){
+DIR *get_proc_input_fd()
+{
     return opendir(PROC_FOLDER_PATH);
 }
 
-int is_numeric(const char *str) {
-    if (*str == '\0') return 0;
-    while (*str) {
-        if (!isdigit(*str)) {
+int is_numeric(const char *str)
+{
+    if (*str == '\0')
+        return 0;
+    while (*str)
+    {
+        if (!isdigit(*str))
+        {
             return 0;
         }
         str++;
@@ -32,10 +37,12 @@ int is_numeric(const char *str) {
     return 1;
 }
 
-int extract_active_procs_count() {
+int extract_active_procs_count()
+{
     DIR *dir = get_proc_input_fd();
-    
-    if (dir == NULL) {
+
+    if (dir == NULL)
+    {
         perror("Failed to open /proc directory");
         return -1;
     }
@@ -43,8 +50,10 @@ int extract_active_procs_count() {
     int process_count = 0;
     struct dirent *entry;
 
-    while ((entry = readdir(dir)) != NULL) {
-        if (is_numeric(entry->d_name)) {
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (is_numeric(entry->d_name))
+        {
             process_count++;
         }
     }
@@ -53,7 +62,9 @@ int extract_active_procs_count() {
     return process_count;
 }
 
-void write_to_file(const int proc_count, char output_path[]) {
+/*deprecated from part 1*/
+static void write_to_file(const int proc_count, char output_path[])
+{
     FILE *output_fd = get_proc_output_fd();
 
     if (output_fd == NULL)
@@ -65,61 +76,32 @@ void write_to_file(const int proc_count, char output_path[]) {
     fprintf(output_fd, "active proc count: %d \n", proc_count);
 
     fclose(output_fd);
-
 }
 
-int main(int argc, char *argv[])
+static void update_system_state(int proc_count)
 {
-    struct timespec prev_time, curr_time; // to get the actual elapsed time.
-    int waitTime = DEFAULT_WAIT_TIME;
-    char output_path[256];
-    bool silent = true;
-    int proc_count = 0;
+    system_proc_set(proc_count);
+}
 
-    snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, PROC_OUTPUT_FILE);
+void proc_worker_thread(void *arg)
+{
+    int wait_time = DEFAULT_WAIT_TIME;
+    int proc_count;
 
-    if (argc > 1)
+    int int_arg = (int)arg;
+    if (int_arg > 0)
     {
-        waitTime = atoi(argv[1]);
+        wait_time = int_arg;
     }
 
-    if (argc > 2 && strcmp(argv[2], "silent") == 0)
-    {
-        silent = true;
-    }
-
-    printf("proc_sensor: Wait time between each check is set to: %d seconds\n", waitTime);
-
-    clock_gettime(CLOCK_MONOTONIC, &prev_time);
+    printf("proc_sensor: Wait time between each check is set to: %d seconds\n", wait_time);
 
     while (1)
     {
-        clock_gettime(CLOCK_MONOTONIC, &curr_time);
-
-        sleep(waitTime);
-
-        curr_elapsed_time = (curr_time.tv_sec - prev_time.tv_sec) +
-                            (curr_time.tv_nsec - prev_time.tv_nsec) / 1e9;
-
-        // ensures that sysmon foldr exists in the tmp directory
-        mkdir(OUTPUT_FOLDER, 0755);
+        sleep(wait_time);
 
         proc_count = extract_active_procs_count();
 
-        if(!silent) {
-            printf("proc count: %d\n", proc_count);
-        }
-
-        write_to_file(proc_count, output_path);
-
-        if (silent)
-        {
-            time_t now = time(NULL);
-            char timestamp[9];
-            strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(&now));
-            printf("[%s] proc_sensor: updated\n", timestamp);
-        }
-
-        prev_time = curr_time;
+        update_system_state(proc_count);
     }
 }

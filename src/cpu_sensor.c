@@ -6,16 +6,11 @@
 #include <stdbool.h>
 #include <time.h>
 #include "config.h"
+#include "cpu_sensor.h"
+#include "system_state.h"
 
-double curr_elapsed_time = 0;
 
-struct Cpu_Data
-{
-    float min1_avg;
-    float min5_avg;
-    float min15_avg;
-};
-
+/*deprecated from part 1*/
 FILE* get_cpu_output_fd(){
     return fopen(CPU_OUTPUT_PATH, "w");
 }
@@ -48,15 +43,15 @@ struct Cpu_Data extract_load_avg_info()
     return cpu_data;
 }
 
-void print(const struct Cpu_Data cpu_data)
+void print(const struct Cpu_Data *cpu_data)
 {
-    printf("First:  %.2f\n", cpu_data.min1_avg);
-    printf("Second: %.2f\n", cpu_data.min5_avg);
-    printf("Third:  %.2f\n", cpu_data.min15_avg);
+    printf("First:  %.2f\n", cpu_data->min1_avg);
+    printf("Second: %.2f\n", cpu_data->min5_avg);
+    printf("Third:  %.2f\n", cpu_data->min15_avg);
 }
 
-
-void write_to_file(const struct Cpu_Data *cpu_data, char output_path[])
+/*deprecated from part 1*/
+static void write_to_file(const struct Cpu_Data *cpu_data, char output_path[])
 {
     FILE *output_fd = get_cpu_output_fd();
 
@@ -69,63 +64,36 @@ void write_to_file(const struct Cpu_Data *cpu_data, char output_path[])
     fprintf(output_fd, "1 Minute Averge: %f\n", cpu_data->min1_avg);
     fprintf(output_fd, "5 Minute Averge: %f\n", cpu_data->min5_avg);
     fprintf(output_fd, "15 Minute Averge: %f\n", cpu_data->min15_avg);
-    fprintf(output_fd,"Actual time elapsed: %.6f seconds\n", curr_elapsed_time);
 
     fclose(output_fd);
 }
 
-int main(int argc, char *argv[])
+
+static void update_system_state(const struct Cpu_Data *cpu_data) {
+    system_cpu_set(cpu_data->min1_avg, cpu_data->min5_avg, cpu_data->min15_avg);
+}
+
+void cpu_worker_thread(void *arg)
 {
     struct Cpu_Data cpu_data;
-    struct timespec prev_time, curr_time; // to get the actual elapsed time.
-    int waitTime = DEFAULT_WAIT_TIME;
-    char output_path[256];
-    bool silent = true;
+    int wait_time = DEFAULT_WAIT_TIME;
 
-    snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, CPU_OUTPUT_FILE);
-
-    if (argc > 1)
+    int int_arg = (int)arg;
+    if (int_arg > 0)
     {
-        waitTime = atoi(argv[1]);
+        wait_time = int_arg;
     }
 
-    if (argc > 2 && strcmp(argv[2], "silent") == 0)
-    {
-        silent = true;
-    }
 
-    printf("cpu_sensor: Wait time between each check is set to: %d seconds\n", waitTime);
+    printf("cpu_sensor: Wait time between each check is set to: %d seconds\n", wait_time);
 
-    clock_gettime(CLOCK_MONOTONIC, &prev_time);
 
     while (1)
     {
-        clock_gettime(CLOCK_MONOTONIC, &curr_time);
-
-        sleep(waitTime);
-
-        curr_elapsed_time = (curr_time.tv_sec - prev_time.tv_sec) +
-                            (curr_time.tv_nsec - prev_time.tv_nsec) / 1e9;
-
-        // ensures that sysmon foldr exists in the tmp directory
-        mkdir(OUTPUT_FOLDER, 0755);
+        sleep(wait_time);
 
         cpu_data = extract_load_avg_info();
 
-        if(!silent) {
-            print(cpu_data);
-        }
-
-        write_to_file(&cpu_data, output_path);
-
-        if (silent)
-        {
-            time_t now = time(NULL);
-            char timestamp[9];
-            strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(&now));
-            printf("[%s] cpu_sensor: updated\n", timestamp);
-        }
-
-        prev_time = curr_time;
+        update_system_state(&cpu_data);
     }
 }

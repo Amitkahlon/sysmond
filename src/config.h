@@ -21,8 +21,4 @@
 #define PROC_OUTPUT_PATH OUTPUT_FOLDER "/" PROC_OUTPUT_FILE
 
 
-
-
-
-
 #endif // CONFIG_H

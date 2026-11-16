@@ -12,178 +12,140 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include "mem_sensor.h"
+#include "cpu_sensor.h"
+#include "proc_sensor.h"
+#include "system_state.h"
+#include "mem_sensor.h"
+#include "cpu_sensor.h"
+#include "proc_sensor.h"
+#include "alert_thread.h"
+#include <pthread.h>
 
-bool cpu_sensor_status = true;
-bool proc_sensor_status = true;
-bool mem_sensor_status = true;
-
-int pid_mem_sensor;
-int pid_cpu_sensor;
-int pid_proc_sensor;
-
-struct Mem_Data
-{
-    unsigned long mem_total;
-    unsigned long mem_free;
-    unsigned long mem_avaliable;
-    unsigned long swap_total;
-    unsigned long swap_free;
+enum {
+    MEM_THREAD_ID = 0,
+    CPU_THREAD_ID,
+    PROC_THREAD_ID,
+    ALERT_THREAD_ID,
+    THREAD_COUNT /* always last: equals the number of threads (4) */
 };
 
-struct Cpu_Data
-{
-    float min1_avg;
-    float min5_avg;
-    float min15_avg;
-};
 
-void print_mem_data(const struct Mem_Data *mem_data)
-{
-    printf("MemTotal: %lu kB\n", mem_data->mem_total);
-    printf("MemFree: %lu kB\n", mem_data->mem_free);
-    printf("MemAvailable: %lu kB\n", mem_data->mem_avaliable);
-    printf("SwapTotal: %lu kB\n", mem_data->swap_total);
-    printf("SwapFree: %lu kB\n", mem_data->swap_free);
-}
 
-void print_cpu_data(const struct Cpu_Data cpu_data)
-{
-    printf("1-minute load average:   %.2f\n", cpu_data.min1_avg);
-    printf("5-minute load average:   %.2f\n", cpu_data.min5_avg);
-    printf("15-minute load average:  %.2f\n", cpu_data.min15_avg);
-}
+static pthread_t threads[THREAD_COUNT];
 
-void read_mem_file()
-{
-    struct Mem_Data mem_data = {0};
-    FILE *fd = fopen(MEM_OUTPUT_PATH, "r");
+/* depreceted*/
+static bool cpu_sensor_status = true;
+static bool proc_sensor_status = true;
+static bool mem_sensor_status = true;
 
-    if (fd == NULL)
+
+static void print_mem_data(const SystemState *sys_state)
+{
+    if (!mem_sensor_status)
     {
-        perror(MEM_OUTPUT_PATH);
+        // print error
         return;
     }
 
-    if (fscanf(fd, "=== Memory Information === Actual time elapsed: %*f seconds "
-                   "Mem Total: %lu kB Mem Free: %lu kB Mem Available: %lu kB "
-                   "Swap Total: %lu kB Swap Free: %lu kB",
-               &mem_data.mem_total, &mem_data.mem_free, &mem_data.mem_avaliable,
-               &mem_data.swap_total, &mem_data.swap_free) == 5)
-    {
-        print_mem_data(&mem_data);
-    }
-
-    fclose(fd);
+    printf("Mem Total: %lu kB\n", sys_state->mem_total);
+    printf("Mem Free: %lu kB\n", sys_state->mem_free);
+    printf("Mem Available: %lu kB\n", sys_state->mem_avail);
+    printf("Swap Total: %lu kB\n", sys_state->swap_total);
+    printf("Swap Free: %lu kB\n", sys_state->swap_free);
 }
 
-void read_cpu_file()
+void print_cpu_data(const SystemState *sys_state)
 {
-    struct Cpu_Data cpu_data = {0};
-    FILE *fd = fopen(CPU_OUTPUT_PATH, "r");
-
-    if (fd == NULL)
+    if (!cpu_sensor_status)
     {
-        perror(CPU_OUTPUT_PATH);
+        // print error
         return;
     }
-
-    if (fscanf(fd, "1 Minute Averge: %f 5 Minute Averge: %f 15 Minute Averge: %f",
-               &cpu_data.min1_avg, &cpu_data.min5_avg, &cpu_data.min15_avg) == 3)
-    {
-        print_cpu_data(cpu_data);
-    }
-
-    fclose(fd);
+    printf("1-minute load average: %.2f\n", sys_state->load1);
+    printf("5-minute load average: %.2f\n", sys_state->load5);
+    printf("15-minute load average: %.2f\n", sys_state->load15);
 }
 
-void read_proc_file()
+void print_proc_data(const SystemState *sys_state)
 {
-    int proc_count = 0;
-    FILE *fd = fopen(PROC_OUTPUT_PATH, "r");
-
-    if (fd == NULL)
+    if (!proc_sensor_status)
     {
-        perror(PROC_OUTPUT_PATH);
+        // print error
         return;
     }
+    printf("Active processes count: %d\n", sys_state->total_procs);
+}
 
-    if (fscanf(fd, "active proc count: %d", &proc_count) == 1)
-    {
-        printf("proc count: %d\n", proc_count);
-    }
-
-    fclose(fd);
+void print_time_now(){
+        time_t now = time(NULL);
+        char timestamp[20];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&now));
+        printf("%s\n", timestamp);
 }
 
 int main_loop(int wait_time)
 {
+    SystemState snapshot = system_state_snapshot(); 
     while (1)
     {
         sleep(wait_time);
 
-        time_t now = time(NULL);
-        char timestamp[20];
-        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&now));
-
-        printf("\n========== System Status [%s] ==========\n", timestamp);
+        printf("\n========== System Status [%s] ==========\n");
+        print_time_now();
         printf("--- Memory ---\n");
-        if (mem_sensor_status)
-        {
-            read_mem_file();
-        }
-        else
-        {
-            printf("** mem sensor is down **\n");
-        }
+        print_mem_data(&snapshot);
         printf("--- CPU Load ---\n");
-        if (cpu_sensor_status)
-        {
-            read_cpu_file();
-        }
-        else
-        {
-            printf("** cpu sensor is down **\n");
-        }
+        print_cpu_data(&snapshot);
         printf("--- Processes ---\n");
-        if (proc_sensor_status)
-        {
-            read_proc_file();
-        }
-        else
-        {
-            printf("** proc sensor is down **\n");
-        }
-
+        print_proc_data(&snapshot);
         printf("============END============\n");
         fflush(stdout);
     }
 }
 
-void handle_sigchld(int sig)
-{
-    pid_t pid;
-    int status;
 
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-    {
-        if (pid == pid_cpu_sensor)
-        {
-            cpu_sensor_status = false;
-        }
-        else if (pid == pid_proc_sensor)
-        {
-            proc_sensor_status = false;
-        }
-        else if (pid == pid_mem_sensor)
-        {
-            mem_sensor_status = false;
-        }
+void ensure_output_dir_exists() {
+    mkdir(OUTPUT_FOLDER, 0755);
+}
+
+
+void wait_all_threads() {
+    for (int i = 0; i < THREAD_COUNT; i++) {
+        pthread_join(threads[i], NULL);
     }
 }
 
+void start_worker_threads(int wait_time){
+
+    if (pthread_create(&threads[MEM_THREAD_ID], NULL, mem_worker_thread, wait_time) != 0) {
+        perror("Failed to create thread 1");
+        return 1;
+    }
+
+    if (pthread_create(&threads[CPU_THREAD_ID], NULL, cpu_worker_thread, wait_time) != 0) {
+        perror("Failed to create thread 2");
+        return 1;
+    }
+
+    if (pthread_create(&threads[PROC_THREAD_ID], NULL, proc_worker_thread, wait_time) != 0) {
+        perror("Failed to create thread 3");
+        return 1;
+    }
+
+    if (pthread_create(&threads[ALERT_THREAD_ID], NULL, alert_worker_thread, NULL) != 0) {
+        perror("Failed to create thread 3");
+        return 1;
+    }
+}
+
+void shutdown() {
+    wait_all_threads();
+}
+
+
 int main(int argc, char *argv[])
 {
-
     int wait_time = DEFAULT_WAIT_TIME;
 
     if (argc > 1)
@@ -191,62 +153,12 @@ int main(int argc, char *argv[])
         wait_time = atoi(argv[1]);
     }
 
-    struct sigaction sa;
-    sa.sa_handler = handle_sigchld;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
+    ensure_output_dir_exists();
 
-    if (sigaction(SIGCHLD, &sa, NULL) == -1)
-    {
-        perror("sigaction failed");
-        return 1;
-    }
+    start_worker_threads(wait_time);
 
-    mkdir(OUTPUT_FOLDER, 0755);
+    main_loop(wait_time);
 
-    pid_mem_sensor = fork();
-    if (pid_mem_sensor == 0)
-    {
-        // child mem_sensor
-
-        char *memargv[] = {"bin/mem_sensor", argc > 1 ? argv[1] : NULL};
-        execv("bin/mem_sensor", memargv);
-
-        perror("execv failed, mem_sensor");
-        exit(1);
-    }
-    else
-    {
-        // base
-        pid_cpu_sensor = fork();
-
-        if (pid_cpu_sensor == 0)
-        {
-            // child cpu_sensor
-            char *cpuargv[] = {"bin/cpu_sensor", argc > 1 ? argv[1] : NULL};
-            execv("bin/cpu_sensor", cpuargv);
-
-            perror("execv failed, cpu_sensor");
-            exit(1);
-        }
-        else
-        {
-            // base
-            pid_proc_sensor = fork();
-            if (pid_proc_sensor == 0)
-            {
-                // child proc_sensor
-                char *cpuargv[] = {"bin/proc_sensor", argc > 1 ? argv[1] : NULL};
-                execv("bin/proc_sensor", cpuargv);
-
-                perror("execv failed, proc_sensor");
-                exit(1);
-            }
-            else
-            {
-                // execute loop
-                main_loop(wait_time);
-            }
-        }
-    }
+    return 0;
+   
 }
