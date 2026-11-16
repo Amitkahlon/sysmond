@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdint.h>
 #include "config.h"
 #include <dirent.h>
 #include <errno.h>
@@ -83,12 +84,12 @@ static void update_system_state(int proc_count)
     system_proc_set(proc_count);
 }
 
-void proc_worker_thread(void *arg)
+void *proc_worker_thread(void *arg)
 {
     int wait_time = DEFAULT_WAIT_TIME;
     int proc_count;
 
-    int int_arg = (int)arg;
+    int int_arg = (int)(intptr_t)arg;
     if (int_arg > 0)
     {
         wait_time = int_arg;
@@ -104,4 +105,6 @@ void proc_worker_thread(void *arg)
 
         update_system_state(proc_count);
     }
+
+    return NULL;
 }

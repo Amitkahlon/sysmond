@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdint.h>
 #include "config.h"
 #include "cpu_sensor.h"
 #include "system_state.h"
@@ -73,12 +74,12 @@ static void update_system_state(const struct Cpu_Data *cpu_data) {
     system_cpu_set(cpu_data->min1_avg, cpu_data->min5_avg, cpu_data->min15_avg);
 }
 
-void cpu_worker_thread(void *arg)
+void *cpu_worker_thread(void *arg)
 {
     struct Cpu_Data cpu_data;
     int wait_time = DEFAULT_WAIT_TIME;
 
-    int int_arg = (int)arg;
+    int int_arg = (int)(intptr_t)arg;
     if (int_arg > 0)
     {
         wait_time = int_arg;
@@ -96,4 +97,6 @@ void cpu_worker_thread(void *arg)
 
         update_system_state(&cpu_data);
     }
+
+    return NULL;
 }

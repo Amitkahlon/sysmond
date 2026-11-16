@@ -8,6 +8,6 @@ struct Cpu_Data
     float min15_avg;
 };
 
-void cpu_worker_thread(void *arg);
+void *cpu_worker_thread(void *arg);
 
 #endif // CPU_SENSOR_H

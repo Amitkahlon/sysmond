@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <time.h>
+#include <stdint.h>
 #include "config.h"
 #include "mem_sensor.h"
 #include "system_state.h"
@@ -107,12 +108,12 @@ static void update_system_state(const struct Mem_Data *mem_data)
             mem_data->swap_free);
 }
 
-void mem_worker_thread(void *arg)
+void *mem_worker_thread(void *arg)
 {
     struct Mem_Data mem_data;
     int wait_time = DEFAULT_WAIT_TIME;
 
-    int int_arg = (int)arg;
+    int int_arg = (int)(intptr_t)arg;
     if (int_arg > 0)
     {
         wait_time = int_arg;
@@ -129,5 +130,5 @@ void mem_worker_thread(void *arg)
         update_system_state(&mem_data);
     }
 
-    return 0;
+    return NULL;
 }

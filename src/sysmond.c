@@ -21,6 +21,7 @@
 #include "proc_sensor.h"
 #include "alert_thread.h"
 #include <pthread.h>
+#include <stdint.h>
 
 enum {
     MEM_THREAD_ID = 0,
@@ -91,7 +92,7 @@ int main_loop(int wait_time)
     {
         sleep(wait_time);
 
-        printf("\n========== System Status [%s] ==========\n");
+        printf("\n========== System Status ==========\n");
         print_time_now();
         printf("--- Memory ---\n");
         print_mem_data(&snapshot);
@@ -118,17 +119,17 @@ void wait_all_threads() {
 
 void start_worker_threads(int wait_time){
 
-    if (pthread_create(&threads[MEM_THREAD_ID], NULL, mem_worker_thread, wait_time) != 0) {
+    if (pthread_create(&threads[MEM_THREAD_ID], NULL, mem_worker_thread, (void *)(intptr_t)wait_time) != 0) {
         perror("Failed to create thread 1");
         return 1;
     }
 
-    if (pthread_create(&threads[CPU_THREAD_ID], NULL, cpu_worker_thread, wait_time) != 0) {
+    if (pthread_create(&threads[CPU_THREAD_ID], NULL, cpu_worker_thread, (void *)(intptr_t)wait_time) != 0) {
         perror("Failed to create thread 2");
         return 1;
     }
 
-    if (pthread_create(&threads[PROC_THREAD_ID], NULL, proc_worker_thread, wait_time) != 0) {
+    if (pthread_create(&threads[PROC_THREAD_ID], NULL, proc_worker_thread, (void *)(intptr_t)wait_time) != 0) {
         perror("Failed to create thread 3");
         return 1;
     }
