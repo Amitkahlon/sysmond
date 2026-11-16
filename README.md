@@ -15,7 +15,7 @@ Example: `./bin/sysmond 2`
 Or build and run in one step:
 ```
 make run               # default sampling interval
-make run INTERVAL=2    # sample every 2 seconds
+make run INTERVAL=1    # sample every 1 seconds
 ```
 
 Press `q` (or Ctrl+C) to quit.
