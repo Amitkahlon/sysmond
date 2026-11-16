@@ -66,7 +66,9 @@ void system_state_init()
     pthread_cond_init(&s_state.alert_cond, NULL);
 }
 
-void system_wait_for_high_load(double threshold){
+/* Blocks until the 1-minute load goes above threshold, then prints one alert. */
+void system_wait_for_load_above(double threshold)
+{
     pthread_mutex_lock(&s_state.lock);
 
     while (s_state.load1 <= threshold) {
@@ -74,6 +76,18 @@ void system_wait_for_high_load(double threshold){
     }
 
     fprintf(stderr, "Monitor: Alert! Value is now %f (exceeded %f)!\n", s_state.load1, threshold);
+
+    pthread_mutex_unlock(&s_state.lock);
+}
+
+/* Blocks until the 1-minute load drops back to threshold or below. */
+void system_wait_for_load_below(double threshold)
+{
+    pthread_mutex_lock(&s_state.lock);
+
+    while (s_state.load1 > threshold) {
+        pthread_cond_wait(&s_state.alert_cond, &s_state.lock);
+    }
 
     pthread_mutex_unlock(&s_state.lock);
 }

@@ -31,7 +31,8 @@ void system_mem_set(long mem_total, long mem_free, long mem_avail, long swap_tot
 void system_cpu_set(double load1, double load5, double load15);
 void system_proc_set(int total_procs);
 SystemState system_state_snapshot();
-void system_wait_for_high_load(double threshold);
+void system_wait_for_load_above(double threshold);
+void system_wait_for_load_below(double threshold);
 
 
 #endif // SYSTEM_STATE_H
