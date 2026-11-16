@@ -29,7 +29,7 @@ int is_numeric(const char *str)
         return 0;
     while (*str)
     {
-        if (!isdigit(*str))
+        if (!isdigit((unsigned char)*str))
         {
             return 0;
         }
@@ -99,11 +99,11 @@ void *proc_worker_thread(void *arg)
 
     while (1)
     {
-        sleep(wait_time);
-
         proc_count = extract_active_procs_count();
 
         update_system_state(proc_count);
+
+        sleep(wait_time);
     }
 
     return NULL;

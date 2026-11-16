@@ -123,11 +123,11 @@ void *mem_worker_thread(void *arg)
 
     while (1)
     {
-        sleep(wait_time);
-
         mem_data = extract_mem_info();
 
         update_system_state(&mem_data);
+
+        sleep(wait_time);
     }
 
     return NULL;

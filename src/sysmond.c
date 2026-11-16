@@ -49,11 +49,11 @@ static void print_mem_data(const SystemState *sys_state)
         return;
     }
 
-    printf("Mem Total: %lu kB\n", sys_state->mem_total);
-    printf("Mem Free: %lu kB\n", sys_state->mem_free);
-    printf("Mem Available: %lu kB\n", sys_state->mem_avail);
-    printf("Swap Total: %lu kB\n", sys_state->swap_total);
-    printf("Swap Free: %lu kB\n", sys_state->swap_free);
+    printf("Mem Total: %ld kB\n", sys_state->mem_total);
+    printf("Mem Free: %ld kB\n", sys_state->mem_free);
+    printf("Mem Available: %ld kB\n", sys_state->mem_avail);
+    printf("Swap Total: %ld kB\n", sys_state->swap_total);
+    printf("Swap Free: %ld kB\n", sys_state->swap_free);
 }
 
 void print_cpu_data(const SystemState *sys_state)
@@ -87,10 +87,11 @@ void print_time_now(){
 
 int main_loop(int wait_time)
 {
-    SystemState snapshot = system_state_snapshot(); 
     while (1)
     {
         sleep(wait_time);
+        
+        SystemState snapshot = system_state_snapshot(); 
 
         printf("\n========== System Status ==========\n");
         print_time_now();
@@ -117,27 +118,35 @@ void wait_all_threads() {
     }
 }
 
-void start_worker_threads(int wait_time){
+/* Returns 0 on success, -1 if any thread failed to start. */
+int start_worker_threads(int wait_time){
+    int ret;
 
-    if (pthread_create(&threads[MEM_THREAD_ID], NULL, mem_worker_thread, (void *)(intptr_t)wait_time) != 0) {
-        perror("Failed to create thread 1");
-        return 1;
+    ret = pthread_create(&threads[MEM_THREAD_ID], NULL, mem_worker_thread, (void *)(intptr_t)wait_time);
+    if (ret != 0) {
+        fprintf(stderr, "Failed to create mem thread: %s\n", strerror(ret));
+        return -1;
     }
 
-    if (pthread_create(&threads[CPU_THREAD_ID], NULL, cpu_worker_thread, (void *)(intptr_t)wait_time) != 0) {
-        perror("Failed to create thread 2");
-        return 1;
+    ret = pthread_create(&threads[CPU_THREAD_ID], NULL, cpu_worker_thread, (void *)(intptr_t)wait_time);
+    if (ret != 0) {
+        fprintf(stderr, "Failed to create cpu thread: %s\n", strerror(ret));
+        return -1;
     }
 
-    if (pthread_create(&threads[PROC_THREAD_ID], NULL, proc_worker_thread, (void *)(intptr_t)wait_time) != 0) {
-        perror("Failed to create thread 3");
-        return 1;
+    ret = pthread_create(&threads[PROC_THREAD_ID], NULL, proc_worker_thread, (void *)(intptr_t)wait_time);
+    if (ret != 0) {
+        fprintf(stderr, "Failed to create proc thread: %s\n", strerror(ret));
+        return -1;
     }
 
-    if (pthread_create(&threads[ALERT_THREAD_ID], NULL, alert_worker_thread, NULL) != 0) {
-        perror("Failed to create thread 3");
-        return 1;
+    ret = pthread_create(&threads[ALERT_THREAD_ID], NULL, alert_worker_thread, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "Failed to create alert thread: %s\n", strerror(ret));
+        return -1;
     }
+
+    return 0;
 }
 
 void shutdown() {
@@ -156,7 +165,12 @@ int main(int argc, char *argv[])
 
     ensure_output_dir_exists();
 
-    start_worker_threads(wait_time);
+    system_state_init();
+
+    if (start_worker_threads(wait_time) != 0)
+    {
+        return 1;
+    }
 
     main_loop(wait_time);
 

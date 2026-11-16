@@ -27,15 +27,14 @@ struct Cpu_Data extract_load_avg_info()
 
     if (mem_info_fd == NULL)
     {
-        perror("Failed to open: ");
-        perror(LOAD_AVG_PATH);
+        perror("Failed to open " LOAD_AVG_PATH);
 
         return cpu_data;
     }
 
     if (fscanf(mem_info_fd, "%f %f %f", &cpu_data.min1_avg, &cpu_data.min5_avg, &cpu_data.min15_avg) != 3)
     {
-        perror("Error reading the first three values.\n");
+        fprintf(stderr, "Error reading the first three values from %s\n", LOAD_AVG_PATH);
     }
 
     fclose(mem_info_fd);
@@ -91,11 +90,11 @@ void *cpu_worker_thread(void *arg)
 
     while (1)
     {
-        sleep(wait_time);
-
         cpu_data = extract_load_avg_info();
 
         update_system_state(&cpu_data);
+
+        sleep(wait_time);
     }
 
     return NULL;
