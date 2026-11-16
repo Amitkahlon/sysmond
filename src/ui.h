@@ -10,7 +10,7 @@ void ui_init(void);
 void ui_restore(void);
 
 /* Redraw the whole screen from a snapshot. */
-void ui_draw(const SystemState *state, int wait_time);
+void ui_draw(const SystemState *state, int sample_interval_sec);
 
 /* Wait up to timeout_ms for a key press. Returns the key, or 0 on timeout. */
 int ui_wait_key(int timeout_ms);

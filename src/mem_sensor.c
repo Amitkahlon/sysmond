@@ -111,15 +111,15 @@ static void update_system_state(const struct Mem_Data *mem_data)
 void *mem_worker_thread(void *arg)
 {
     struct Mem_Data mem_data;
-    int wait_time = DEFAULT_WAIT_TIME;
+    int sample_interval_sec = DEFAULT_SAMPLE_INTERVAL_SEC;
 
     int int_arg = (int)(intptr_t)arg;
     if (int_arg > 0)
     {
-        wait_time = int_arg;
+        sample_interval_sec = int_arg;
     }
 
-    printf("mem_sensor: Wait time between each check is set to: %d seconds\n", wait_time);
+    printf("mem_sensor: Sampling interval is set to: %d seconds\n", sample_interval_sec);
 
     while (1)
     {
@@ -127,7 +127,7 @@ void *mem_worker_thread(void *arg)
 
         update_system_state(&mem_data);
 
-        sleep(wait_time);
+        sleep(sample_interval_sec);
     }
 
     return NULL;

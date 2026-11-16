@@ -36,14 +36,14 @@ enum {
 
 static pthread_t threads[THREAD_COUNT];
 
-int main_loop(int wait_time)
+int main_loop(int sample_interval_sec)
 {
     while (1)
     {
         SystemState snapshot = system_state_snapshot();
-        ui_draw(&snapshot, wait_time);
+        ui_draw(&snapshot, sample_interval_sec);
 
-        int key = ui_wait_key(wait_time * 1000);
+        int key = ui_wait_key(sample_interval_sec * 1000);
         if (key == 'q' || key == 'Q' || key == 3 /* Ctrl+C */)
         {
             return 0;
@@ -64,22 +64,22 @@ void wait_all_threads() {
 }
 
 /* Returns 0 on success, -1 if any thread failed to start. */
-int start_worker_threads(int wait_time){
+int start_worker_threads(int sample_interval_sec){
     int ret;
 
-    ret = pthread_create(&threads[MEM_THREAD_ID], NULL, mem_worker_thread, (void *)(intptr_t)wait_time);
+    ret = pthread_create(&threads[MEM_THREAD_ID], NULL, mem_worker_thread, (void *)(intptr_t)sample_interval_sec);
     if (ret != 0) {
         fprintf(stderr, "Failed to create mem thread: %s\n", strerror(ret));
         return -1;
     }
 
-    ret = pthread_create(&threads[CPU_THREAD_ID], NULL, cpu_worker_thread, (void *)(intptr_t)wait_time);
+    ret = pthread_create(&threads[CPU_THREAD_ID], NULL, cpu_worker_thread, (void *)(intptr_t)sample_interval_sec);
     if (ret != 0) {
         fprintf(stderr, "Failed to create cpu thread: %s\n", strerror(ret));
         return -1;
     }
 
-    ret = pthread_create(&threads[PROC_THREAD_ID], NULL, proc_worker_thread, (void *)(intptr_t)wait_time);
+    ret = pthread_create(&threads[PROC_THREAD_ID], NULL, proc_worker_thread, (void *)(intptr_t)sample_interval_sec);
     if (ret != 0) {
         fprintf(stderr, "Failed to create proc thread: %s\n", strerror(ret));
         return -1;
@@ -109,11 +109,11 @@ void shutdown() {
 
 int main(int argc, char *argv[])
 {
-    int wait_time = DEFAULT_WAIT_TIME;
+    int sample_interval_sec = DEFAULT_SAMPLE_INTERVAL_SEC;
 
     if (argc > 1)
     {
-        wait_time = atoi(argv[1]);
+        sample_interval_sec = atoi(argv[1]);
     }
 
     ensure_output_dir_exists();
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 
     puts("Starting sysmond...");
 
-    if (start_worker_threads(wait_time) != 0)
+    if (start_worker_threads(sample_interval_sec) != 0)
     {
         return 1;
     }
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 
     ui_init();
 
-    main_loop(wait_time);
+    main_loop(sample_interval_sec);
 
     // program exitted
     shutdown();

@@ -105,7 +105,7 @@ static void draw_bar(double pct)
     printf(RESET "] %3.0f%%", pct);
 }
 
-void ui_draw(const SystemState *s, int wait_time)
+void ui_draw(const SystemState *s, int sample_interval_sec)
 {
     char timestamp[20];
     time_t now = time(NULL);
@@ -140,7 +140,7 @@ void ui_draw(const SystemState *s, int wait_time)
     printf(DIM " " LINE RESET "\n");
 
     /* Footer */
-    printf(DIM "  q: quit    refresh: %ds" RESET "\n", wait_time);
+    printf(DIM "  q: quit    sampling: %ds" RESET "\n", sample_interval_sec);
 
     fflush(stdout);
 }

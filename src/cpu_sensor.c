@@ -76,16 +76,16 @@ static void update_system_state(const struct Cpu_Data *cpu_data) {
 void *cpu_worker_thread(void *arg)
 {
     struct Cpu_Data cpu_data;
-    int wait_time = DEFAULT_WAIT_TIME;
+    int sample_interval_sec = DEFAULT_SAMPLE_INTERVAL_SEC;
 
     int int_arg = (int)(intptr_t)arg;
     if (int_arg > 0)
     {
-        wait_time = int_arg;
+        sample_interval_sec = int_arg;
     }
 
 
-    printf("cpu_sensor: Wait time between each check is set to: %d seconds\n", wait_time);
+    printf("cpu_sensor: Sampling interval is set to: %d seconds\n", sample_interval_sec);
 
 
     while (1)
@@ -94,7 +94,7 @@ void *cpu_worker_thread(void *arg)
 
         update_system_state(&cpu_data);
 
-        sleep(wait_time);
+        sleep(sample_interval_sec);
     }
 
     return NULL;

@@ -24,7 +24,7 @@ $(BIN_DIR) $(OBJ_DIR):
 	mkdir -p $@
 
 run: $(TARGET)
-	./$(TARGET) $(WAIT)
+	./$(TARGET) $(INTERVAL)
 
 clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR)/*
