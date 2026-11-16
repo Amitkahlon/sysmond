@@ -20,6 +20,7 @@
 #include "cpu_sensor.h"
 #include "proc_sensor.h"
 #include "alert_thread.h"
+#include "ui.h"
 #include <pthread.h>
 #include <stdint.h>
 
@@ -35,74 +36,19 @@ enum {
 
 static pthread_t threads[THREAD_COUNT];
 
-/* depreceted*/
-static bool cpu_sensor_status = true;
-static bool proc_sensor_status = true;
-static bool mem_sensor_status = true;
-
-
-static void print_mem_data(const SystemState *sys_state)
-{
-    if (!mem_sensor_status)
-    {
-        // print error
-        return;
-    }
-
-    printf("Mem Total: %ld kB\n", sys_state->mem_total);
-    printf("Mem Free: %ld kB\n", sys_state->mem_free);
-    printf("Mem Available: %ld kB\n", sys_state->mem_avail);
-    printf("Swap Total: %ld kB\n", sys_state->swap_total);
-    printf("Swap Free: %ld kB\n", sys_state->swap_free);
-}
-
-void print_cpu_data(const SystemState *sys_state)
-{
-    if (!cpu_sensor_status)
-    {
-        // print error
-        return;
-    }
-    printf("1-minute load average: %.2f\n", sys_state->load1);
-    printf("5-minute load average: %.2f\n", sys_state->load5);
-    printf("15-minute load average: %.2f\n", sys_state->load15);
-}
-
-void print_proc_data(const SystemState *sys_state)
-{
-    if (!proc_sensor_status)
-    {
-        // print error
-        return;
-    }
-    printf("Active processes count: %d\n", sys_state->total_procs);
-}
-
-void print_time_now(){
-        time_t now = time(NULL);
-        char timestamp[20];
-        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&now));
-        printf("%s\n", timestamp);
-}
-
 int main_loop(int wait_time)
 {
     while (1)
     {
-        sleep(wait_time);
-        
-        SystemState snapshot = system_state_snapshot(); 
+        SystemState snapshot = system_state_snapshot();
+        ui_draw(&snapshot, wait_time);
 
-        printf("\n========== System Status ==========\n");
-        print_time_now();
-        printf("--- Memory ---\n");
-        print_mem_data(&snapshot);
-        printf("--- CPU Load ---\n");
-        print_cpu_data(&snapshot);
-        printf("--- Processes ---\n");
-        print_proc_data(&snapshot);
-        printf("============END============\n");
-        fflush(stdout);
+        /* Waits wait_time seconds, or less if a key is pressed. */
+        int key = ui_wait_key(wait_time * 1000);
+        if (key == 'q' || key == 'Q' || key == 3 /* Ctrl+C */)
+        {
+            return 0;
+        }
     }
 }
 
@@ -172,7 +118,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    ui_init();
+
     main_loop(wait_time);
+
+    ui_restore();
 
     return 0;
    

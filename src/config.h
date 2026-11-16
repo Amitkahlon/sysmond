@@ -4,6 +4,7 @@
 
 // DEFAULTS
 #define DEFAULT_WAIT_TIME 5
+#define ALERT_THRESHOLD 1.50
 
 // INPUT
 #define MEM_INFO_PATH "/proc/meminfo"
