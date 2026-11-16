@@ -96,6 +96,13 @@ int start_worker_threads(int wait_time){
 
 void shutdown() {
     ui_restore();
+
+    /* The threads loop forever, so stop them before joining.
+       They are cancelled at sleep() / pthread_cond_wait(). */
+    for (int i = 0; i < THREAD_COUNT; i++) {
+        pthread_cancel(threads[i]);
+    }
+
     wait_all_threads();
 }
 
@@ -127,6 +134,7 @@ int main(int argc, char *argv[])
 
     main_loop(wait_time);
 
+    // program exitted
     shutdown();
 
     return 0;
