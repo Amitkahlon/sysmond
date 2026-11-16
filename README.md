@@ -5,18 +5,28 @@
 make
 ```
 
-## Start the sensors
+## Run
 ```
-./start_sensors.sh [wait_time] [silent]
+./bin/sysmond [wait_time]
 ```
-Example: `./start_sensors.sh 2`
+`wait_time` is the refresh interval in seconds (default: 5).
+Example: `./bin/sysmond 2`
 
-## Show system status
+Or build and run in one step:
 ```
-./bin/sysmond
+make run            # default interval
+make run WAIT=2     # refresh every 2 seconds
 ```
 
-## Stop the sensors
+Press `q` (or Ctrl+C) to quit.
+
+
+## Configuration
+Defaults live in `src/config.h`:
+- `DEFAULT_WAIT_TIME`: the refresh interval when none is given
+- `ALERT_THRESHOLD`: the load average that triggers the alert
+
+## Clean
 ```
-./stop_sensors.sh
+make clean
 ```
