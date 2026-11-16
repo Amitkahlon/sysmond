@@ -43,7 +43,6 @@ int main_loop(int wait_time)
         SystemState snapshot = system_state_snapshot();
         ui_draw(&snapshot, wait_time);
 
-        /* Waits wait_time seconds, or less if a key is pressed. */
         int key = ui_wait_key(wait_time * 1000);
         if (key == 'q' || key == 'Q' || key == 3 /* Ctrl+C */)
         {
@@ -96,6 +95,7 @@ int start_worker_threads(int wait_time){
 }
 
 void shutdown() {
+    ui_restore();
     wait_all_threads();
 }
 
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 
     main_loop(wait_time);
 
-    ui_restore();
+    shutdown();
 
     return 0;
    
