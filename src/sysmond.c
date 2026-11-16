@@ -113,10 +113,15 @@ int main(int argc, char *argv[])
 
     system_state_init();
 
+    puts("Starting sysmond...");
+
     if (start_worker_threads(wait_time) != 0)
     {
         return 1;
     }
+
+    //to ensure system state is updated
+    sleep(1);
 
     ui_init();
 
