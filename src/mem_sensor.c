@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include "config.h"
-#include "sysmon_ipc.h"
+#include "inc/sysmon_ipc.h"
 #include <assert.h>
 
 FILE *get_mem_output_fd()

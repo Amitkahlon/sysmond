@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -g
-HEADERS = src/config.h src/sysmon_ipc.h
+HEADERS = src/config.h src/inc/sysmon_ipc.h
 
 all: bin/sysmond bin/mem_sensor bin/cpu_sensor bin/proc_sensor
 

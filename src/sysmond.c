@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include "sysmon_ipc.h"
+#include "inc/sysmon_ipc.h"
 #include <fcntl.h>
 
 #define MEM_BIN_PATH "bin/mem_sensor"

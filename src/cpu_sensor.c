@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include "config.h"
-#include "sysmon_ipc.h"
+#include "inc/sysmon_ipc.h"
 #include <errno.h>
 #include <fcntl.h>
 
@@ -64,7 +64,7 @@ int write_to_output(const CpuData *cpu_data)
         close(fd);
         return 1;
     }
-    
+
     close(fd);
     return 0;
 }
