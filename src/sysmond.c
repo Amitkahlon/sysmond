@@ -19,11 +19,48 @@
 #define CPU_BIN_PATH "bin/cpu_sensor"
 #define PROC_BIN_PATH "bin/proc_sensor"
 
-static int pid_mem_sensor;
-static int pid_cpu_sensor;
-static int pid_proc_sensor;
+static int pid_mem_sensor = -1;
+static int pid_cpu_sensor = -1;
+static int pid_proc_sensor = -1;
 
-int mem_pipe_fd[2];
+int mem_pipe_fd[2] = {-1, -1};
+static int cpu_fifo_fd = -1;
+static int proc_fifo_fd = -1;
+
+static void shutdown_handler(int sig)
+{
+    int pids[] = {pid_mem_sensor, pid_cpu_sensor, pid_proc_sensor};
+
+    for (int i = 0; i < 3; i++)
+        if (pids[i] > 0)
+            kill(pids[i], SIGTERM);
+
+    for (int i = 0; i < 3; i++)
+        if (pids[i] > 0)
+            waitpid(pids[i], NULL, 0);
+
+     close(mem_pipe_fd[0]);
+     close(mem_pipe_fd[1]);
+    close(cpu_fifo_fd);
+    close(proc_fifo_fd);
+
+    unlink(CPU_FIFO_PATH);
+    unlink(PROC_FIFO_PATH);
+
+    _exit(0);
+}
+
+static void install_signal_handlers(void)
+{
+    struct sigaction sa = {0};
+    sa.sa_handler = shutdown_handler;
+    sigemptyset(&sa.sa_mask);
+    sigaddset(&sa.sa_mask, SIGINT);
+    sigaddset(&sa.sa_mask, SIGTERM);
+
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+}
 
 void print_cpu_data(const CpuData *data)
 {
@@ -68,18 +105,19 @@ CpuData read_cpu()
 {
     CpuData buff = {0};
 
-    int rfd = open(CPU_FIFO_PATH, O_RDONLY);
-    if (rfd == -1)
+    cpu_fifo_fd = open(CPU_FIFO_PATH, O_RDONLY);
+    if (cpu_fifo_fd == -1)
     {
         perror("parent read open failed");
         return buff;
     }
 
-    ssize_t n = read(rfd, &buff, sizeof(buff));
+    ssize_t n = read(cpu_fifo_fd, &buff, sizeof(buff));
     if (n != sizeof(buff))
         fprintf(stderr, "read_cpu: short read (%zd)\n", n);
 
-    close(rfd);
+    close(cpu_fifo_fd);
+    cpu_fifo_fd = -1;
 
     return buff;
 }
@@ -88,18 +126,19 @@ ProcData read_proc()
 {
     ProcData buff = {0};
 
-    int rfd = open(PROC_FIFO_PATH, O_RDONLY);
-    if (rfd == -1)
+    proc_fifo_fd = open(PROC_FIFO_PATH, O_RDONLY);
+    if (proc_fifo_fd == -1)
     {
         perror("parent read open failed");
         return buff;
     }
 
-    ssize_t n = read(rfd, &buff, sizeof(buff));
+    ssize_t n = read(proc_fifo_fd, &buff, sizeof(buff));
     if (n != sizeof(buff))
         fprintf(stderr, "read_proc: short read (%zd)\n", n);
 
-    close(rfd);
+    close(proc_fifo_fd);
+    proc_fifo_fd = -1;
 
     return buff;
 }
@@ -205,6 +244,9 @@ int main(int argc, char *argv[])
             {
                 // parent
                 close(mem_pipe_fd[1]);
+                mem_pipe_fd[1] = -1;
+
+                install_signal_handlers();
 
                 // execute loop
                 main_loop(wait_time);
