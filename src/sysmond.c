@@ -33,7 +33,6 @@ void print_cpu_data(const CpuData *data)
         return;
     }
 
-    printf("=== CPU Load Data ===\n");
     printf("Load 1m : %.2f\n", data->load1);
     printf("Load 5m : %.2f\n", data->load5);
     printf("Load 15m: %.2f\n", data->load15);
@@ -47,7 +46,6 @@ void print_mem_data(const MemData *data)
         return;
     }
 
-    printf("=== Memory Data ===\n");
     printf("Mem Total : %ld\n", data->mem_total);
     printf("Mem Free  : %ld\n", data->mem_free);
     printf("Mem Avail : %ld\n", data->mem_avail);
@@ -63,7 +61,6 @@ void print_proc_data(const ProcData *data)
         return;
     }
 
-    printf("=== Process Data ===\n");
     printf("Total Procs: %d\n", data->total_procs);
 }
 
@@ -119,7 +116,6 @@ MemData read_mem()
 
 int main_loop(int wait_time)
 {
-
     while (1)
     {
         MemData mem_data = read_mem();
@@ -139,7 +135,7 @@ int main_loop(int wait_time)
         printf("============END============\n");
         fflush(stdout);
 
-        sleep(wait_time);
+        sleep(1);
     }
 }
 
