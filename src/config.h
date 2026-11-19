@@ -3,7 +3,7 @@
 #define CONFIG_H
 
 // DEFAULTS
-#define DEFAULT_WAIT_TIME 5
+#define DEFAULT_INTERVAL_TIME 1
 
 // INPUT
 #define MEM_INFO_PATH "/proc/meminfo"

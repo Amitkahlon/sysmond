@@ -6,126 +6,80 @@
 #include <stdbool.h>
 #include <time.h>
 #include "config.h"
+#include "sysmon_ipc.h"
+#include <errno.h>
+#include <fcntl.h>
 
-double curr_elapsed_time = 0;
 
-struct Cpu_Data
+FILE *get_cpu_output_fd()
 {
-    float min1_avg;
-    float min5_avg;
-    float min15_avg;
-};
-
-FILE* get_cpu_output_fd(){
     return fopen(CPU_OUTPUT_PATH, "w");
 }
 
-FILE* get_cpu_input_fd(){
+FILE *get_cpu_input_fd()
+{
     return fopen(LOAD_AVG_PATH, "r");
 }
 
-struct Cpu_Data extract_load_avg_info()
+CpuData extract_load_avg_info()
 {
-    struct Cpu_Data cpu_data = {0};
+    CpuData cpu_data = {0};
     FILE *mem_info_fd = get_cpu_input_fd();
 
     if (mem_info_fd == NULL)
     {
-        perror("Failed to open: ");
+        perror("cpu_sensor: Failed to open: ");
         perror(LOAD_AVG_PATH);
 
         return cpu_data;
     }
 
-    if (fscanf(mem_info_fd, "%f %f %f", &cpu_data.min1_avg, &cpu_data.min5_avg, &cpu_data.min15_avg) != 3)
+    if (fscanf(mem_info_fd, "%lf %lf %lf", &cpu_data.load1, &cpu_data.load5, &cpu_data.load15) != 3)
     {
-        perror("Error reading the first three values.\n");
+        perror("cpu_sensor: Error reading the first three values.\n");
     }
 
     fclose(mem_info_fd);
 
-
     return cpu_data;
 }
 
-void print(const struct Cpu_Data cpu_data)
+int write_to_output(const CpuData *cpu_data)
 {
-    printf("First:  %.2f\n", cpu_data.min1_avg);
-    printf("Second: %.2f\n", cpu_data.min5_avg);
-    printf("Third:  %.2f\n", cpu_data.min15_avg);
-}
-
-
-void write_to_file(const struct Cpu_Data *cpu_data, char output_path[])
-{
-    FILE *output_fd = get_cpu_output_fd();
-
-    if (output_fd == NULL)
-    {
-        printf("Error opening file!\n");
-        return;
+    if (mkfifo(CPU_FIFO_PATH, 0666) == -1 && errno != EEXIST) {
+        perror("cpu_sensor: mkfifo failed");
+        return 1;
     }
 
-    fprintf(output_fd, "1 Minute Averge: %f\n", cpu_data->min1_avg);
-    fprintf(output_fd, "5 Minute Averge: %f\n", cpu_data->min5_avg);
-    fprintf(output_fd, "15 Minute Averge: %f\n", cpu_data->min15_avg);
-    fprintf(output_fd,"Actual time elapsed: %.6f seconds\n", curr_elapsed_time);
 
-    fclose(output_fd);
+    int fd = open(CPU_FIFO_PATH, O_WRONLY);
+    if (fd == -1) {
+        perror("cpu_sensor: open for write failed");
+        return 1;
+    }
+    
+    ssize_t written = write(fd, cpu_data, sizeof(*cpu_data));
+    if (written == -1) {
+        perror("cpu_sensor: write failed");
+        close(fd);
+        return 1;
+    }
+    
+    close(fd);
+    return 0;
 }
 
 int main(int argc, char *argv[])
 {
-    struct Cpu_Data cpu_data;
-    struct timespec prev_time, curr_time; // to get the actual elapsed time.
-    int waitTime = DEFAULT_WAIT_TIME;
-    char output_path[256];
-    bool silent = true;
-
-    snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, CPU_OUTPUT_FILE);
-
-    if (argc > 1)
-    {
-        waitTime = atoi(argv[1]);
-    }
-
-    if (argc > 2 && strcmp(argv[2], "silent") == 0)
-    {
-        silent = true;
-    }
-
-    printf("cpu_sensor: Wait time between each check is set to: %d seconds\n", waitTime);
-
-    clock_gettime(CLOCK_MONOTONIC, &prev_time);
+    CpuData cpu_data;
+    int wait_time = DEFAULT_INTERVAL_TIME;
 
     while (1)
     {
-        clock_gettime(CLOCK_MONOTONIC, &curr_time);
-
-        sleep(waitTime);
-
-        curr_elapsed_time = (curr_time.tv_sec - prev_time.tv_sec) +
-                            (curr_time.tv_nsec - prev_time.tv_nsec) / 1e9;
-
-        // ensures that sysmon foldr exists in the tmp directory
-        mkdir(OUTPUT_FOLDER, 0755);
-
         cpu_data = extract_load_avg_info();
 
-        if(!silent) {
-            print(cpu_data);
-        }
-
-        write_to_file(&cpu_data, output_path);
-
-        if (silent)
-        {
-            time_t now = time(NULL);
-            char timestamp[9];
-            strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(&now));
-            printf("[%s] cpu_sensor: updated\n", timestamp);
-        }
-
-        prev_time = curr_time;
+        write_to_output(&cpu_data);
+  
+        sleep(wait_time);
     }
 }

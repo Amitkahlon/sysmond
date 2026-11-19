@@ -9,8 +9,12 @@
 #include <dirent.h>
 #include <errno.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include "sysmon_ipc.h"
 
-double curr_elapsed_time = 0;
+
+
+#define FIFO_PATH "/tmp/sysmon_proc.fifo"
 
 
 FILE* get_proc_output_fd(){
@@ -32,12 +36,14 @@ int is_numeric(const char *str) {
     return 1;
 }
 
-int extract_active_procs_count() {
+ProcData extract_active_procs_count() {
+    ProcData proc_data = {0};  
+
     DIR *dir = get_proc_input_fd();
     
     if (dir == NULL) {
-        perror("Failed to open /proc directory");
-        return -1;
+        perror("proc_sensor: Failed to open /proc directory");
+        return proc_data;
     }
 
     int process_count = 0;
@@ -49,77 +55,48 @@ int extract_active_procs_count() {
         }
     }
 
+    proc_data.total_procs = process_count;
+
     closedir(dir);
-    return process_count;
+    return proc_data;
 }
 
-void write_to_file(const int proc_count, char output_path[]) {
-    FILE *output_fd = get_proc_output_fd();
-
-    if (output_fd == NULL)
-    {
-        printf("Error opening file!\n");
-        return;
+int write_to_output(const ProcData proc_data) {
+    if (mkfifo(FIFO_PATH, 0666) == -1 && errno != EEXIST) {
+        perror("cpu_sensor: mkfifo failed");
+        return 1;
     }
 
-    fprintf(output_fd, "active proc count: %d \n", proc_count);
+    int fd = open(FIFO_PATH, O_WRONLY);
+    if (fd == -1) {
+        perror("cpu_sensor: open for write failed");
+        return 1;
+    }
+    
+    ssize_t written = write(fd, &proc_data, sizeof(proc_data));
+    if (written == -1) {
+        perror("cpu_sensor: write failed");
+        close(fd);
+        return 1;
+    }
 
-    fclose(output_fd);
+    close(fd);
+
+    return 0;
 
 }
 
 int main(int argc, char *argv[])
 {
-    struct timespec prev_time, curr_time; // to get the actual elapsed time.
-    int waitTime = DEFAULT_WAIT_TIME;
-    char output_path[256];
-    bool silent = true;
-    int proc_count = 0;
-
-    snprintf(output_path, sizeof(output_path), "%s/%s", OUTPUT_FOLDER, PROC_OUTPUT_FILE);
-
-    if (argc > 1)
-    {
-        waitTime = atoi(argv[1]);
-    }
-
-    if (argc > 2 && strcmp(argv[2], "silent") == 0)
-    {
-        silent = true;
-    }
-
-    printf("proc_sensor: Wait time between each check is set to: %d seconds\n", waitTime);
-
-    clock_gettime(CLOCK_MONOTONIC, &prev_time);
+    int waitTime = DEFAULT_INTERVAL_TIME;
+    ProcData proc_data;
 
     while (1)
     {
-        clock_gettime(CLOCK_MONOTONIC, &curr_time);
+        proc_data = extract_active_procs_count();
+
+        write_to_output(proc_data);
 
         sleep(waitTime);
-
-        curr_elapsed_time = (curr_time.tv_sec - prev_time.tv_sec) +
-                            (curr_time.tv_nsec - prev_time.tv_nsec) / 1e9;
-
-        // ensures that sysmon foldr exists in the tmp directory
-        mkdir(OUTPUT_FOLDER, 0755);
-
-        proc_count = extract_active_procs_count();
-
-        if(!silent) {
-            printf("proc count: %d\n", proc_count);
-        }
-
-        write_to_file(proc_count, output_path);
-
-        if (silent)
-        {
-            time_t now = time(NULL);
-            char timestamp[9];
-            strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(&now));
-            printf("[%s] proc_sensor: updated\n", timestamp);
-        }
-
-        prev_time = curr_time;
     }
 }
